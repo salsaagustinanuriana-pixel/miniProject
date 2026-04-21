@@ -2,6 +2,7 @@ package com.example.salsa.exception;
 
 import com.example.salsa.response.WebResponse;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,22 +23,19 @@ public class GlobalExceptionHandler {
     }
 
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public WebResponse<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
-
-        Map<String, String> errors = new HashMap<>();
-
-        ex.getBindingResult().getFieldErrors().forEach(error ->
-                errors.put(error.getField(), error.getDefaultMessage())
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<WebResponse<Object>> handlerRuntime(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                WebResponse.<Object>builder()
+                        .status("error")
+                        .message(ex.getMessage())
+                        .data(null)
+                        .build()
         );
 
-        return WebResponse.<Map<String, String>>builder()
-                .status("Fail")
-                .message("Validasi gagal")
-                .data(errors)
-                .build();
+
     }
+
 
 
     @ExceptionHandler(Exception.class)
@@ -49,4 +47,5 @@ public class GlobalExceptionHandler {
                 .data(null)
                 .build();
     }
+
 }
