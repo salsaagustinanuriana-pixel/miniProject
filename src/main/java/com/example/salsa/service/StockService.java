@@ -3,12 +3,15 @@ package com.example.salsa.service;
 import com.example.salsa.model.*;
 import com.example.salsa.repository.*;
 import com.example.salsa.request.StockMutationRequest;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class StockService {
@@ -69,7 +72,6 @@ public class StockService {
     @Transactional
     public void transfer(StockMutationRequest request) {
 
-        // 1. VALIDASI PRODUCT AKTIF
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product tidak ditemukan"));
 
@@ -77,14 +79,12 @@ public class StockService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Product tidak aktif");
         }
 
-        // 2. AMBIL WAREHOUSE
         WareHouse fromWarehouse = warehouseRepository.findById(request.getFromWarehouseId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gudang asal tidak ditemukan"));
 
         WareHouse toWarehouse = warehouseRepository.findById(request.getToWarehouseId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Gudang tujuan tidak ditemukan"));
 
-        // 3. CEK STOCK
         WareHouseStock fromStock = warehouseStockRepository
                 .findByProduct_IdAndWarehouse_Id(product.getId(), fromWarehouse.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Stok di gudang asal tidak ditemukan"));
@@ -93,11 +93,11 @@ public class StockService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stok tidak mencukupi");
         }
 
-        // 4. KURANGI STOCK ASAL
+        // KURANGI STOCK ASAL
         fromStock.setStock(fromStock.getStock() - request.getQuantity());
         warehouseStockRepository.save(fromStock);
 
-        // 5. TAMBAH STOCK TUJUAN
+        // TAMBAH STOCK TUJUAN
         WareHouseStock toStock = warehouseStockRepository
                 .findByProduct_IdAndWarehouse_Id(product.getId(), toWarehouse.getId())
                 .orElse(null);
@@ -113,15 +113,44 @@ public class StockService {
 
         warehouseStockRepository.save(toStock);
 
-        // 6. CATAT MUTATION
-        StockMutation mutation = new StockMutation();
-        mutation.setProduct(product);
-        mutation.setFromWarehouse(fromWarehouse);
-        mutation.setToWarehouse(toWarehouse);
-        mutation.setQuantity(request.getQuantity());
-        mutation.setType("TRANSFER");
-        mutation.setTimestamp(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
 
-        stockMutationRepository.save(mutation);
+        // 🔥 OUT (dari gudang asal)
+        StockMutation outMutation = new StockMutation();
+        outMutation.setProduct(product);
+        outMutation.setFromWarehouse(fromWarehouse);
+        outMutation.setToWarehouse(toWarehouse);
+        outMutation.setQuantity(request.getQuantity());
+        outMutation.setType("OUT");
+        outMutation.setTimestamp(now);
+
+        stockMutationRepository.save(outMutation);
+
+        // 🔥 IN (ke gudang tujuan)
+        StockMutation inMutation = new StockMutation();
+        inMutation.setProduct(product);
+        inMutation.setFromWarehouse(fromWarehouse);
+        inMutation.setToWarehouse(toWarehouse);
+        inMutation.setQuantity(request.getQuantity());
+        inMutation.setType("IN");
+        inMutation.setTimestamp(now);
+
+        stockMutationRepository.save(inMutation);
+    }
+    public List<StockMutation> getLatestMutation(String type) {
+
+        if (type == null || type.isEmpty()) {
+            type = "ALL";
+        }
+
+        type = type.toUpperCase();
+
+        if (!type.equals("IN") && !type.equals("OUT") && !type.equals("ALL")) {
+            throw new IllegalArgumentException("Type harus IN, OUT, atau ALL");
+        }
+
+        Pageable pageable = PageRequest.of(0, 5);
+
+        return stockMutationRepository.findLatestMutation(type, pageable);
     }
 }
