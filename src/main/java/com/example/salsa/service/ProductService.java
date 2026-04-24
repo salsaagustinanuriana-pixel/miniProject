@@ -6,8 +6,10 @@ import com.example.salsa.model.Product;
 import com.example.salsa.model.WareHouseStock;
 import com.example.salsa.repository.CategoryRepository;
 import com.example.salsa.repository.ProductRepository;
+import com.example.salsa.repository.StockMutationRepository;
 import com.example.salsa.repository.WarehouseStockRepository;
 import com.example.salsa.request.ProductRequest;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,11 +18,13 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final WarehouseStockRepository warehouseStockRepository;
+    private final StockMutationRepository stockMutationRepository;
 
 
     public Product create(ProductRequest request) {
@@ -113,4 +117,23 @@ public class ProductService {
         return productRepository.findAll();
     }
 
+
+
+    @Transactional
+    public void deleteProduct(Long productId) {
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product tidak ditemukan"));
+
+        if (Boolean.TRUE.equals(product.getIsActive())) {
+            throw new RuntimeException("Product masih aktif, nonaktifkan dulu sebelum hapus");
+        }
+
+        stockMutationRepository.setProductNull(productId);
+
+        warehouseStockRepository.deleteByProduct(product);
+
+
+        productRepository.delete(product);
+    }
 }

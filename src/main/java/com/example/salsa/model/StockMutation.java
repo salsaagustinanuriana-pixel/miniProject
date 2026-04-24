@@ -14,7 +14,7 @@ public class StockMutation {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "product_id")
+    @JoinColumn(name = "product_id", nullable = true)
     private Product product;
 
     @ManyToOne

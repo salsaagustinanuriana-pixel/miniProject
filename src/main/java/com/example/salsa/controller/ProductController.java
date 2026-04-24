@@ -6,6 +6,7 @@ import com.example.salsa.request.ProductRequest;
 import com.example.salsa.response.WebResponse;
 import com.example.salsa.service.ProductService;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -68,6 +69,8 @@ public class ProductController {
                 .build();
     }
 
+
+
     @PutMapping("/restore/{id}")
     public WebResponse<Void> restore(@PathVariable Long id) {
         productService.restore(id);
@@ -76,6 +79,19 @@ public class ProductController {
              .message("Produk berhasil diaktifkan kembali")
                 .build();
     }
+
+    @DeleteMapping("/{id}")
+    public WebResponse<Void> deleteProduct(@PathVariable Long id) {
+
+        productService.deleteProduct(id);
+
+        return WebResponse.<Void>builder()
+                .status("Success")
+                .message("Produk berhasil dihapus permanen")
+                .build();
+    }
+
+
 
     @GetMapping("/low-stock")
     public WebResponse<List<WareHouseStock>> getLowStock() {
@@ -102,3 +118,12 @@ public class ProductController {
                 .build();
     }
 }
+
+
+
+
+
+
+
+
+
